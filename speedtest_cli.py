@@ -33,6 +33,13 @@ source = None
 shutdown_event = None
 scheme = 'http'
 
+gcontext = None
+
+try:
+    if sys.version_info < (2, 7, 9): raise Exception()
+    import ssl; gcontext = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+except:
+    pass
 
 # Used for bound_interface
 socket_socket = socket.socket
@@ -226,7 +233,10 @@ def catch_request(request):
     """
 
     try:
-        uh = urlopen(request)
+        if gcontext == None:
+            uh = urlopen(request)
+        else:
+            ug = urlopen(request, context=gcontext)
         return uh, False
     except (HTTPError, URLError, socket.error):
         e = sys.exc_info()[1]
@@ -247,7 +257,10 @@ class FileGetter(threading.Thread):
         try:
             if (timeit.default_timer() - self.starttime) <= 10:
                 request = build_request(self.url)
-                f = urlopen(request)
+                if gcontext == None:
+                    f = urlopen(request)
+                else:
+                    f = urlopen(request, context=gcontext)
                 while 1 and not shutdown_event.isSet():
                     self.result.append(len(f.read(10240)))
                     if self.result[-1] == 0:
@@ -312,7 +325,10 @@ class FilePutter(threading.Thread):
             if ((timeit.default_timer() - self.starttime) <= 10 and
                     not shutdown_event.isSet()):
                 request = build_request(self.url, data=self.data)
-                f = urlopen(request)
+                if gcontext == None:
+                    f = urlopen(request)
+                else:
+                    f = urlopen(request, context=gcontext)
                 f.read(11)
                 f.close()
                 self.result = len(self.data)
@@ -659,7 +675,10 @@ def speedtest():
         urlparts = urlparse(url)
         try:
             request = build_request(args.mini)
-            f = urlopen(request)
+            if gcontext == None:
+                f = urlopen(request)
+            else:
+                f = urlopen(request, context=gcontext)
         except:
             print_('Invalid Speedtest Mini URL')
             sys.exit(1)
@@ -672,7 +691,10 @@ def speedtest():
                 try:
                     request = build_request('%s/speedtest/upload.%s' %
                                             (args.mini, ext))
-                    f = urlopen(request)
+                    if gcontext == None:
+                        f = urlopen(request)
+                    else:
+                        f = urlopen(request, context=gcontext)
                 except:
                     pass
                 else:
